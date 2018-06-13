@@ -1,0 +1,291 @@
+---
+title: "Data Science Capstone Project - Milestone Report"
+author: "Adrian R Angkawijaya"
+date: "6/12/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## *Executive Summary*
+
+This is the Capstone Project for the Johns Hopkins University Data Science Specialization, hosted by Coursera in colaboration with SwiftKey. The overall goal of this project is to make a Natural Language Processing predictive application that returns a suggestion of the next word based on text that are inputted. Examples of such features are commonly found in web search sites and text messaging.
+
+The dataset is obtained from the HC Corpora corpus and contains three textfile datasets (Blogs, News, Twitter). The files are provided in German, Russian, Finnish and English. The raw dataset is available to download [here](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip). We only use the English files for this project.
+
+The goal of this report is to get familiar with the dataset and do some necessary data cleaning and transformations as part of the project. We perform text mining on the HC Corpora corpus data for the cleaning, tokenization, and all the analysis. Graphs and Wordcloud are created at the end of the report for easier visual understanding of the data. 
+
+All the codes of the project are done with R but they are not shown in this report to make it easier for non data scientist to read and understand the report. The only code that is shown is only the code to download and load files into R.
+
+If you are interested in seeing the hidden R codes of the report, feel free to check and browse my GitHub project page by clicking [here](https://github.com/adrianromano/NLP-Word-Prediction-Project).
+
+## *Data Preparation*
+
+**We first download and load the three textfiles to R as shown by the codes below**
+```{r, warning = FALSE}
+if (!file.exists("Courseradata")) {
+    dir.create("Courseradata")
+}
+
+fileUrl <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+download.file(fileUrl, destfile = "/Users/adrianromano/Downloads/Courseradata/Coursera-SwiftKey.zip", method = "curl")
+
+if (!file.exists("/Users/adrianromano/Downloads/Courseradata/Coursera-SwiftKey")) {
+    unzip(zipfile = "/Users/adrianromano/Downloads/Courseradata/Coursera-SwiftKey.zip", 
+          exdir = "/Users/adrianromano/Downloads/Courseradata")
+}
+
+blogs <- readLines("/Users/adrianromano/Downloads/Courseradata//final/en_US/en_US.blogs.txt")
+news <- readLines("/Users/adrianromano/Downloads/Courseradata//final/en_US/en_US.news.txt")
+twitter <- readLines("/Users/adrianromano/Downloads/Courseradata//final/en_US/en_US.twitter.txt")
+```
+
+**Here we see the summary of the three datasets:**
+```{r, echo = FALSE}
+## Number of Lines
+blogsLength <- length(blogs)
+newsLength <- length(news)
+twitterLength <- length(twitter)
+
+## Number of Words
+library(stringi)
+blogsWords <- sum(stri_count_words(blogs))
+newsWords <- sum(stri_count_words(news))
+twitterWords <- sum(stri_count_words(twitter))
+
+## File Size
+blogsSize <- file.info("/Users/adrianromano/Downloads/Courseradata//final/en_US/en_US.blogs.txt")$size/1024^2
+newsSize <- file.info("/Users/adrianromano/Downloads/Courseradata//final/en_US/en_US.news.txt")$size/1024^2
+twitterSize <- file.info("/Users/adrianromano/Downloads/Courseradata//final/en_US/en_US.twitter.txt")$size/1024^2
+
+summaryData <- data.frame(Dataset = c("Blogs", "News", "Twitter"),
+                     Lines = c(blogsLength, newsLength, twitterLength),
+                     Words = c(blogsWords, newsWords, twitterWords),
+                     FileSize.MB = c(blogsSize, newsSize, twitterSize))
+summaryData
+```
+
+* *Since the data sizes are very large (total of about 550 MB), we take samples of each dataset and use them for the rest of the analysis in order to reduce size and processing time.*
+
+```{r, echo = FALSE}
+set.seed(1995)
+blogsSample <- sample(blogs, blogsLength * 0.01)
+newsSample <- sample(news, newsLength * 0.01)
+twitterSample <- sample(twitter, twitterLength * 0.01)
+```
+
+#### **Next we see the first line of each sampled dataset to get an understanding of how the data looks like:**
+
+**First line of the Blogs sample dataset:**
+```{r, echo = FALSE}
+head(blogsSample, 1)
+```
+
+**First line of the News sample dataset:**
+```{r,echo = FALSE}
+head(newsSample, 1)
+```
+
+**First line of the Twitter sample dataset:**
+```{r, echo = FALSE}
+head(twitterSample, 1)
+```
+
+**We then merge the three datasets into one single dataset and see the total number of lines and words of the combined three datasets samples:**
+```{r, echo = FALSE}
+totalSample <- c(blogsSample, newsSample, twitterSample)
+paste("Number of Lines:", length(totalSample))
+paste("Number of Words:", sum(stri_count_words(totalSample)))
+```
+
+## *Data Cleaning*
+
+We conduct the cleaning of the data by performing these following conditions:
+
+* Convert all text characters to lower cases.
+* Remove all numbers, punctuations and white spaces.
+* Remove profanity words (bad/swear words). 
+
+The profanity data was downloaded from the *Free Web Headers - bad words banned by Google* website and can be downloaded by clicking [here](http://www.freewebheaders.com/full-list-of-bad-words-banned-by-google/).
+
+**Note:** In Natural Language Processing, usually stop words or common english words such as "the", "and", "for", etc are removed in order to highlight the more important words. However, since we are trying to make a next word prediction, these words are actually important to include so we decide to proceed without removing them.
+
+```{r, echo = FALSE, warning = FALSE}
+setwd("/Users/adrianromano/Downloads")
+badwords <- readLines("full-list-of-bad-words-text-file_2018_03_26.txt")
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+library(tm)
+corpus <- VCorpus(VectorSource(totalSample))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, removeWords, badwords)
+```
+
+```{r, echo = FALSE}
+rm(blogs, news, twitter, blogsSample, newsSample, twitterSample, totalSample)
+```
+
+## *Exploratory Data Analysis*
+
+After the data is cleaned, we then move on to Exploratory Data Analysis.
+
+Here we create n-grams by the process called tokenization in which we break down texts into words. For example, a 2-gram tokenization means the texts are broken down to a two words combination. For this project, we create 1-gram (unigram), 2-gram (bigram), 3-gram (trigram), 4-gram (fourgram) and 5-gram (fivegram) and then transform the unstructured text dataset into structured data frames so that they can be used for statistical analysis and prediction models. More information about n-grams can be found on this wikipedia [link](https://en.wikipedia.org/wiki/N-gram) if you are interested in learning more about the technical details.
+
+Barplots and wordclouds of each n-grams are created to see which words appear the most frequent for unigram, bigram, trigram, fourgram and fivegram. In wordcloud, the most frequent words are determined by font sizes with the biggest one representing the most frequent word.
+
+**Note:** Since we do not remove stopwords in the cleaning process, it is expected that the most frequent words contain a lot of common English words.
+
+### **Unigram**
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+library(RWeka)
+library(ggplot2)
+library(wordcloud2)
+Tokenizer1 <- function (x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
+unigram <- TermDocumentMatrix(corpus, control = list(tokenize = Tokenizer1))
+unigram <- removeSparseTerms(unigram, 0.9999)
+
+uniFreq <- sort(rowSums(as.matrix(unigram)), decreasing = TRUE)
+uniFreq.df <- data.frame(Word = names(uniFreq), Freq = uniFreq)
+```
+
+* **Barplot:**
+
+```{r, echo = FALSE}
+ggplot(uniFreq.df[1:10, ], aes(x = reorder(Word, Freq), y = Freq, fill = Freq, alpha = 0.1)) +
+    geom_bar(stat = "identity", color = "black") +
+    xlab("") +
+    ylab("Frequency") +
+    ggtitle("Top 10 Most Frequent Unigrams") +
+    coord_flip() +
+    guides(fill = FALSE, alpha = FALSE) 
+```
+
+* **Wordcloud:**
+```{r, echo = FALSE}
+set.seed(1995)
+wordcloud2(uniFreq.df, size = 2, fontWeight = "bold", fontFamily = "Comic Sans MS", color = "random-light", backgroundColor = "black")
+```
+
+### **Bigram**
+```{r, echo = FALSE}
+Tokenizer2 <- function (x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+bigram <- TermDocumentMatrix(corpus, control = list(tokenize = Tokenizer2))
+bigram <- removeSparseTerms(bigram, 0.9999)
+
+biFreq <- sort(rowSums(as.matrix(bigram)), decreasing = TRUE)
+biFreq.df <- data.frame(Word = names(biFreq), Freq = biFreq)
+```
+
+* **Barplot:**
+
+```{r, echo = FALSE}
+ggplot(biFreq.df[1:10, ], aes(x = reorder(Word, Freq), y = Freq, fill = Freq, alpha = 0.1)) +
+    geom_bar(stat = "identity", color = "black") +
+    xlab("") +
+    ylab("Frequency") +
+    ggtitle("Top 10 Most Frequent Bigrams") +
+    coord_flip() +
+    guides(fill = FALSE, alpha = FALSE) 
+```
+
+* **Wordcloud:**
+```{r, echo = FALSE}
+set.seed(1995)
+wordcloud2(biFreq.df, fontWeight = "normal", color = "random-light", fontFamily = "Comic Sans MS", backgroundColor = "black")
+```
+
+### **Trigram**
+```{r, echo = FALSE}
+Tokenizer3 <- function (x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+trigram <- TermDocumentMatrix(corpus, control = list(tokenize = Tokenizer3))
+trigram <- removeSparseTerms(trigram, 0.9999)
+
+triFreq <- sort(rowSums(as.matrix(trigram)), decreasing = TRUE)
+triFreq.df <- data.frame(Word = names(triFreq), Freq = triFreq)
+```
+
+* **Barplot:**
+
+```{r, echo = FALSE}
+ggplot(triFreq.df[1:10, ], aes(x = reorder(Word, Freq), y = Freq, fill = Freq, alpha = 0.1)) +
+    geom_bar(stat = "identity", color = "black") +
+    xlab("") +
+    ylab("Frequency") +
+    ggtitle("Top 10 Most Frequent Trigrams") +
+    coord_flip() +
+    guides(fill = FALSE, alpha = FALSE) 
+```
+
+* **Wordcloud:**
+```{r, echo = FALSE}
+set.seed(1995)
+wordcloud2(triFreq.df, size = 0.5, fontWeight = "bold", color = "random-light", fontFamily = "Comic Sans MS", backgroundColor = "black")
+```
+
+### **Fourgram**
+```{r, echo = FALSE}
+Tokenizer4 <- function (x) NGramTokenizer(x, Weka_control(min = 4, max = 4))
+fourgram <- TermDocumentMatrix(corpus, control = list(tokenize = Tokenizer4))
+fourgram <- removeSparseTerms(fourgram, 0.9999)
+
+fourFreq <- sort(rowSums(as.matrix(fourgram)), decreasing = TRUE)
+fourFreq.df <- data.frame(Word = names(fourFreq), Freq = fourFreq)
+```
+
+* **Barplot:**
+
+```{r, echo = FALSE}
+ggplot(fourFreq.df[1:10, ], aes(x = reorder(Word, Freq), y = Freq, fill = Freq, alpha = 0.1)) +
+    geom_bar(stat = "identity", color = "black") +
+    xlab("") +
+    ylab("Frequency") +
+    ggtitle("Top 10 Most Frequent Fourgrams") +
+    coord_flip() +
+    guides(fill = FALSE, alpha = FALSE) 
+```
+
+* **Wordcloud:**
+```{r, echo = FALSE}
+set.seed(1995)
+wordcloud2(fourFreq.df, size = 0.5, fontWeight = "bold", color = "random-light", fontFamily = "Comic Sans MS", backgroundColor = "black")
+```
+
+### **Fivegram**
+```{r, echo = FALSE}
+Tokenizer5 <- function (x) NGramTokenizer(x, Weka_control(min = 5, max = 5))
+fivegram <- TermDocumentMatrix(corpus, control = list(tokenize = Tokenizer5))
+fivegram <- removeSparseTerms(fivegram, 0.9999)
+
+fiveFreq <- sort(rowSums(as.matrix(fivegram)), decreasing = TRUE)
+fiveFreq.df <- data.frame(Word = names(fiveFreq), Freq = fiveFreq)
+```
+
+* **Barplot:**
+
+```{r, echo = FALSE}
+ggplot(fiveFreq.df[1:10, ], aes(x = reorder(Word, Freq), y = Freq, fill = Freq, alpha = 0.1)) +
+    geom_bar(stat = "identity", color = "black") +
+    xlab("") +
+    ylab("Frequency") +
+    ggtitle("Top 10 fivegrams by Frequency") +
+    coord_flip() +
+    guides(fill = FALSE, alpha = FALSE) 
+```
+
+* **Wordcloud:**
+```{r, echo = FALSE}
+set.seed(1995)
+wordcloud2(fiveFreq.df, size = 0.4, fontWeight = "bold", color = "random-light", fontFamily = "Comic Sans MS", backgroundColor = "black")
+```
+
+## *Final Comments*
+
+* As expected, the most frequent words are stopwords since we chose to not remove them in the cleaning process.
+* The max n-gram we created was a 5-gram, but we can always increase it further if necessary to help improve prediction accuracy.
+* The sample size taken to train the model was only about 1% of the original data. However, we can always increase the sample size further for more accuracy but with a tradeoff of more processing time and memory size.
+* The next plan is building the predictive model application. We will build and publish the application using the Shiny app package in R. A slide deck will also be created to explain the usage of the application and the algorithm behind it. 
