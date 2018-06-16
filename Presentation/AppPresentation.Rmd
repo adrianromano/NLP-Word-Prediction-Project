@@ -1,0 +1,60 @@
+---
+title: "Data Science Project - Word Prediction App"
+author: "Adrian R. Angkawijaya"
+date: "June 2018"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+##  About the Project
+
+This project is the final Capstone Project of the John Hopkins Data Science Specialization Program, hosted by Coursera in collaboration with SwiftKey. This application is a simulation of SwiftKey's text input app mostly seen on smartphones text messaging or web search sites where next words are predicted when a user input or type in a word.
+
+The coding and algorithms for the project are all done in R. Natural Language Processing techniques are implemented to do the text data mining and the prediction. RWeka, tm and stringi are some useful Natural Language Processing packages that were developed in R and are used in the project. Check out this wikipedia [link](https://en.wikipedia.org/wiki/Natural_language_processing) to learn more about NLP.
+
+```{r, out.width = "600px", fig.align = "center", echo = FALSE}
+knitr::include_graphics("/Users/adrianromano/R/www/JHU.png")
+```
+
+## Approach and the Algorithm
+
+The following cleaning activities are computed to the data before we create the model:
+
+- Convert all text characters to lower case
+- Remove every numbers and punctuations
+- Remove any white spaces
+- Remove any bad words and swear words.
+
+The model was then created using the algorithm of N-grams model. Five N-grams tokens were created (unigram, bigram, trigram, fourgram, fivegram) and were transformed into frequency data frames. The model are then able to predict next word based on the corresponding n-gram frequencies. A more technical background about the technique is available to see on the wikipedia page [here](https://en.wikipedia.org/wiki/N-gram).
+
+```{r, out.width = "200px", fig.align = "right", echo = FALSE}
+knitr::include_graphics("/Users/adrianromano/R/www/swiftkey.png")
+```
+
+## The Application
+
+The application itself is very simple to use. The user enter or type in any length of words in the first box, the second box will then predict and show the next word automatically every time a new word is inputted. An example of how it works can be seen below:
+
+```{r, out.width = "900px", fig.align = "center", echo = FALSE}
+knitr::include_graphics("/Users/adrianromano/R/www/app.png")
+```
+
+## Additional Information
+
+- Here is the link to the application! ~~> [Word Prediction App](https://adrianromano.shinyapps.io/word_prediction_app/)
+
+- Check out this [Milestone Report](http://rpubs.com/adrianromano/396892) that includes the Exploratory Data Analysis and how we did the preparation for the project. 
+
+- All the R codes of the project can also be accessed from my [GitHub](https://github.com/adrianromano/NLP-Word-Prediction-Project) project page.
+
+- Click [here](https://www.coursera.org/specializations/jhu-data-science) to learn more about the Data Science Specialization Program.
+
+Enjoy and have fun with the App!
+
+```{r, out.width = "800px", fig.align = "left", echo = FALSE}
+knitr::include_graphics("/Users/adrianromano/R/www/coursera.png")
+```
