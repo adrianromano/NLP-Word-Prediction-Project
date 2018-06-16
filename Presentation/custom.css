@@ -1,0 +1,16 @@
+@import url('//fonts.googleapis.com/css?family=Pangolin');
+
+body {
+    background-image: url("mac.jpg"); 
+        background-size: cover; 
+        background-repeat: no-repeat; 
+        background-position: center center;
+        height: 100vh; 
+
+    margin: 0;
+    font-family: 'Pangolin';
+    color: #223;
+    background-color: #fff;
+}
+
+
